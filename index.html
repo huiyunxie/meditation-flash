@@ -81,6 +81,57 @@
       letter-spacing: 0.10em;
     }
 
+    /* ── Data menu ── */
+    .data-btn {
+      background: none; border: none; cursor: pointer;
+      color: rgba(196,169,122,0.7); font-size: 20px;
+      padding: 4px 6px; line-height: 1; border-radius: 6px;
+      transition: background .15s;
+    }
+    .data-btn:active { background: rgba(196,169,122,0.12); }
+    .data-overlay {
+      display: none; position: fixed; inset: 0; z-index: 200;
+      background: rgba(0,0,0,0.55); backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      align-items: flex-end; justify-content: center;
+    }
+    .data-overlay.open { display: flex; }
+    .data-sheet {
+      background: #1c1a17; border-radius: 18px 18px 0 0;
+      padding: 28px 24px 40px; width: 100%; max-width: 480px;
+      box-shadow: 0 -4px 32px rgba(0,0,0,0.4);
+    }
+    .data-sheet h3 {
+      font-size: 13px; font-weight: 400; letter-spacing: .12em;
+      color: rgba(196,169,122,0.6); margin: 0 0 20px;
+      text-transform: uppercase;
+    }
+    .data-action {
+      display: flex; align-items: center; gap: 14px;
+      padding: 14px 0; border-bottom: 1px solid rgba(255,255,255,0.06);
+      cursor: pointer; transition: opacity .15s;
+    }
+    .data-action:last-child { border-bottom: none; }
+    .data-action:active { opacity: .6; }
+    .data-action-icon {
+      width: 40px; height: 40px; border-radius: 10px;
+      background: rgba(196,169,122,0.12);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; flex-shrink: 0;
+    }
+    .data-action-text { flex: 1; }
+    .data-action-title {
+      font-size: 15px; font-weight: 400; color: #e8e0d0;
+    }
+    .data-action-sub {
+      font-size: 11px; color: rgba(196,169,122,0.5); margin-top: 2px;
+    }
+    .data-cancel {
+      margin-top: 14px; width: 100%; padding: 14px;
+      background: rgba(255,255,255,0.05); border: none; border-radius: 12px;
+      color: rgba(232,224,208,0.6); font-size: 15px; cursor: pointer;
+    }
+
     /* ── Main ── */
     .main { flex: 1; overflow-y: auto; padding: 0 20px 20px; }
 
@@ -879,7 +930,31 @@
       <div class="brand-sub">看见念头，即是转念的开始</div>
     </div>
     <div class="brand-accent" aria-hidden="true"><span></span><i></i></div>
+    <button class="data-btn" id="dataMenuBtn" aria-label="数据管理">⋯</button>
   </header>
+
+  <!-- 数据管理面板 -->
+  <div class="data-overlay" id="dataOverlay">
+    <div class="data-sheet">
+      <h3>数据管理</h3>
+      <div class="data-action" id="exportBtn">
+        <div class="data-action-icon">↓</div>
+        <div class="data-action-text">
+          <div class="data-action-title">备份数据</div>
+          <div class="data-action-sub">导出 JSON 文件，可在任意设备恢复</div>
+        </div>
+      </div>
+      <div class="data-action" id="importTrigger">
+        <div class="data-action-icon">↑</div>
+        <div class="data-action-text">
+          <div class="data-action-title">恢复数据</div>
+          <div class="data-action-sub">从备份 JSON 文件导入，覆盖当前数据</div>
+        </div>
+      </div>
+      <input type="file" id="importInput" accept=".json" style="display:none">
+      <button class="data-cancel" id="dataCancelBtn">取消</button>
+    </div>
+  </div>
 
   <main class="main">
 
@@ -2124,6 +2199,51 @@
   // ═══ Init ═══
   initDrum();
   updateRing();
+
+  // ═══ Data Management ═══
+  const dataOverlay   = document.getElementById('dataOverlay');
+  const dataMenuBtn   = document.getElementById('dataMenuBtn');
+  const dataCancelBtn = document.getElementById('dataCancelBtn');
+  const exportBtn     = document.getElementById('exportBtn');
+  const importTrigger = document.getElementById('importTrigger');
+  const importInput   = document.getElementById('importInput');
+
+  dataMenuBtn.addEventListener('click', () => dataOverlay.classList.add('open'));
+  dataCancelBtn.addEventListener('click', () => dataOverlay.classList.remove('open'));
+  dataOverlay.addEventListener('click', e => { if (e.target === dataOverlay) dataOverlay.classList.remove('open'); });
+
+  exportBtn.addEventListener('click', () => {
+    const data = localStorage.getItem('zhuannian_v2') || '[]';
+    const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const blob = new Blob([data], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `冥想闪念_备份_${date}.json`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+    dataOverlay.classList.remove('open');
+  });
+
+  importTrigger.addEventListener('click', () => importInput.click());
+
+  importInput.addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const parsed = JSON.parse(ev.target.result);
+        if (!Array.isArray(parsed)) throw new Error('格式错误');
+        localStorage.setItem('zhuannian_v2', JSON.stringify(parsed));
+        dataOverlay.classList.remove('open');
+        location.reload();
+      } catch {
+        alert('文件格式不正确，请选择正确的备份 JSON 文件');
+      }
+    };
+    reader.readAsText(file);
+    importInput.value = '';
+  });
 </script>
 </body>
 </html>
